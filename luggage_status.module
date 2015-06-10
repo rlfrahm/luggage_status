@@ -1,0 +1,48 @@
+<?php
+
+/**
+ * Implements hook_cron()
+ */
+function luggage_status_cron() {
+  try {
+//    $status = system_status();
+//    $status = shell_exec('drush 2>&1; echo $?');
+    $sf = new StatusFile();
+    $sf->add('url',$GLOBALS['base_url']);
+
+    $file = file_get_contents($GLOBALS['base_url'] . '/LUGGAGE_CHANGELOG.txt');
+    $pattern = preg_quote('Luggage', '/');
+    $pattern = "/^.*$pattern.*\$/m";
+    preg_match($pattern, $file, $matches);
+    if($matches)
+      $sf->add('luggage_version',$matches[0]);
+
+    $file = file_get_contents($GLOBALS['base_url'] . '/CHANGELOG.txt');
+    $pattern = preg_quote('Drupal', '/');
+    $pattern = "/^.*$pattern.*\$/m";
+    preg_match($pattern, $file, $matches);
+    if($matches)
+      $sf->add('drupal_version',$matches[0]);
+
+//    $sf->add('luggage_core',system_get_info('module','luggage_core'));
+    $sf->write();
+  } catch (Exception $e) {
+    watchdog(WATCHDOG_ERROR,$e);
+  }
+}
+
+class StatusFile {
+  protected $contents = array();
+  protected $directory = 'public://status';
+  protected $filename = 'status.json';
+  public function add($key,$value) {
+    $this->contents[$key] = $value;
+  }
+  public function write() {
+    file_prepare_directory($dir,FILE_CREATE_DIRECTORY);
+    file_save_data(json_encode($this->contents),$this->getFilePath(),FILE_EXISTS_REPLACE);
+  }
+  protected function getFilePath() {
+    return $this->directory . '/' . $this->filename;
+  }
+}
