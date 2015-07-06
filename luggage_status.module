@@ -1,6 +1,47 @@
 <?php
 
 /**
+ * Implements hook_menu()
+ */
+function luggage_status_menu() {
+  $items = array();
+
+  $items['status/' . 'sdfkgjnsldfkbgsldkfbglksdjbfglksdjbfg'] = array(
+    'access arguments' => array('access content'),
+    'page callback' => 'luggage_status_status_callback',
+    'page arguments' => array(2),
+    'delivery callback' => 'drupal_json_output',
+  );
+
+  $items['admin/config/dashboard/luggage_dashboard'] = array(
+    'title' => 'Luggage Dashboard',
+    'description' => 'Configuration for your Luggage dashboard.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('luggage_status_config_form'),
+    'access arguments' => array('access administrative pages'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  return $items;
+}
+
+function luggage_status_status_callback() {
+  return StatusFile::get();
+}
+
+function luggage_status_config_form($form, &$form_state) {
+  $form['luggage_status_client_token'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Client Token'),
+    '#default_value' => variable_get('luggage_status_client_token', uniqid(mt_rand(), TRUE)),
+    '#description' => t('Copy & paste this token into the node related to this site\'s environment on your Luggage dashboard.'),
+    '#required' => TRUE,
+  );
+
+  return system_settings_form($form);
+}
+
+/**
  * Implements hook_cron()
  */
 function luggage_status_cron() {
@@ -32,17 +73,25 @@ function luggage_status_cron() {
 }
 
 class StatusFile {
+
   protected $contents = array();
-  protected $directory = 'public://status';
-  protected $filename = 'status.json';
+  protected static $directory = 'public://status';
+  protected static $filename = 'status.json';
+
   public function add($key,$value) {
     $this->contents[$key] = $value;
   }
+
   public function write() {
     file_prepare_directory($dir,FILE_CREATE_DIRECTORY);
     file_save_data(json_encode($this->contents),$this->getFilePath(),FILE_EXISTS_REPLACE);
   }
-  protected function getFilePath() {
-    return $this->directory . '/' . $this->filename;
+
+  protected static function getFilePath() {
+    return StatusFile::$directory . '/' . StatusFile::$filename;
+  }
+
+  public static function get() {
+    return file_get_contents(StatusFile::getFilePath());
   }
 }
