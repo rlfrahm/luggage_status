@@ -6,10 +6,16 @@
 function luggage_status_menu() {
   $items = array();
 
-  $items['status/' . 'sdfkgjnsldfkbgsldkfbglksdjbfglksdjbfg'] = array(
+  $token = variable_get('luggage_status_client_token');
+  if(!$token) {
+    $token = luggage_status_generate_new_token();
+    variable_set('luggage_status_client_token', $token);
+  }
+
+  $items['luggage/status'] = array(
     'access arguments' => array('access content'),
     'page callback' => 'luggage_status_status_callback',
-    'page arguments' => array(2),
+//    'page arguments' => array(2),
     'delivery callback' => 'drupal_json_output',
   );
 
@@ -26,19 +32,55 @@ function luggage_status_menu() {
 }
 
 function luggage_status_status_callback() {
-  return StatusFile::get();
+  if(variable_get('luggage_status_client_token') == $_REQUEST['token']) {
+    return json_decode(StatusFile::get());
+  } else {
+    return NULL;
+  }
 }
 
 function luggage_status_config_form($form, &$form_state) {
   $form['luggage_status_client_token'] = array(
     '#type' => 'textfield',
     '#title' => t('Client Token'),
-    '#default_value' => variable_get('luggage_status_client_token', uniqid(mt_rand(), TRUE)),
+    '#default_value' => variable_get('luggage_status_client_token', luggage_status_generate_new_token()),
     '#description' => t('Copy & paste this token into the node related to this site\'s environment on your Luggage dashboard.'),
     '#required' => TRUE,
+    '#disabled' => TRUE,
+    '#prefix' => '<div id="client-token">',
+    '#suffix' => '</div>',
+  );
+
+  $form['luggage_status_regenerate_client_token'] = array(
+    '#type' => 'button',
+    '#attributes' => array('onclick' => 'return (false);'),
+    '#value' => t('Generate New Token'),
+    '#ajax' => array(
+      'callback' => 'luggage_status_regenerate_token_ajax_callback',
+      'effect' => 'fade',
+      'method' => 'replace',
+      'wrapper' => 'client-token',
+    ),
   );
 
   return system_settings_form($form);
+}
+
+/**
+ * Custom function
+ */
+function luggage_status_regenerate_token_ajax_callback($form, $form_state) {
+  $token = luggage_status_generate_new_token();
+  variable_set('luggage_status_client_token', $token);
+  $form['luggage_status_client_token']['#value'] = $token;
+  return $form['luggage_status_client_token'];
+}
+
+/**
+ * Custom function
+ */
+function luggage_status_generate_new_token() {
+  return uniqid(mt_rand(), TRUE);
 }
 
 /**
